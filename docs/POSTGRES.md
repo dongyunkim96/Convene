@@ -32,6 +32,6 @@ SQLite remains available when DATABASE_URL is absent locally. Its async adapter 
 - Domain tests exercise the async SQLite path, concurrent application bookings, independent SQLite writers, repeatable seeding, and all booking/access/check-in rules.
 - Embedded real PostgreSQL (PGlite) tests execute the actual PostgreSQL migration and database triggers, including repeated migration, capacity, VIP access, overlap, email uniqueness, and millisecond session-expiry storage. They do not establish cloud connectivity.
 - The actual Vercel build verifies Neon connectivity and initialization using its environment variables.
-- Browser tests verify the local application. Hosted smoke tests, when executed, are reported separately; local passes alone do not claim Neon end-to-end validation.
+- All five browser tests passed locally and against the actual Vercel/Neon application, including persisted registration, waitlist promotion, organizer check-in, and simultaneous final-seat requests. See [verification evidence](VERIFICATION.md) for scope and limits.
 
 References: [node-postgres transactions](https://node-postgres.com/features/transactions), [Neon connection pooling](https://neon.com/docs/connect/connection-pooling).

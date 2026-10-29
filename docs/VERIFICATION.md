@@ -1,16 +1,16 @@
 # Verification evidence
 
-Executed locally on October 29, 2026 using Node 24.22.1 on Windows and headless Chromium 1248. The application was run as a local SvelteKit server; no remote deployment is claimed.
+Executed on October 29, 2026 using Node 24.22.1 on Windows and headless Chromium 1248. Local verification used SQLite. Hosted verification used the actual Vercel production application and Neon PostgreSQL; the Vercel adapter build ran on Vercel's Linux infrastructure.
 
-**Story:** registration UI → validated SvelteKit action → SQLite user/profile/session records → session booking API → transactional reservations/waitlists → persistent attendee schedule and matching organizer views.
+**Story:** registration UI → validated SvelteKit action → database user/profile/session records → session booking API → transactional reservations/waitlists → persistent attendee schedule and matching organizer views.
 
 ## Executed checks
 
 | Boundary or check                   | Result           | Evidence                                                                                                                                                                      |
 | ----------------------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Strict Svelte/TypeScript checks     | Passed           | `svelte-check found 0 errors and 0 warnings`                                                                                                                                  |
-| Domain and database rules           | Passed           | 14 Vitest tests, including independent concurrent SQLite connections                                                                                                          |
-| Production build                    | Passed           | Vite SSR/client build and Node adapter completed                                                                                                                              |
+| Domain and database rules           | Passed           | 24 Vitest tests: 17 domain/SQLite tests and 7 real embedded PostgreSQL migration/trigger tests                                                                                |
+| Production build                    | Passed           | Local Node adapter build and hosted Linux Vercel adapter build completed                                                                                                      |
 | Main desktop flow                   | Passed           | New general registration, combined search/track filter, reserved seat, schedule, conflict warning/link, full-session waitlist                                                 |
 | Multi-account promotion             | Passed           | Casey cancels in another authenticated browser context; waiting attendee becomes confirmed, including after reload                                                            |
 | Organizer consistency               | Passed           | Attendee search displays matching two-session schedule; attendee GET and POST to organizer resources return 403                                                               |
@@ -37,14 +37,17 @@ Executed locally on October 29, 2026 using Node 24.22.1 on Windows and headless 
 - Improved mobile pass sizing so its QR is easier to reveal above the bottom navigation.
 - Corrected test locators to distinguish hidden mobile filters, required-field label suffixes, and asynchronous client navigation.
 - Isolated E2E records from the interactive dev database.
-- Explicitly configured the production origin to match local HTTP on port 3000, preserving CSRF checks. Deployment requires the matching public APP_ORIGIN before building.
+- Explicitly configured the standalone local origin for port 3000. Vercel uses each request's actual origin, preserving CSRF checks without a local-origin override.
+- Prevented editing the organizer capacity field before hydration, which could overwrite an early edit. The hosted concurrency test now reloads and verifies the stored capacity before racing requests, and restores shared demo fixtures afterward.
 
 ## Final production run
 
-All **5 Playwright tests passed in 29.8 seconds** against the built Node application, including consent and invitation validation, valid VIP registration, and profile persistence. Strict checking reported **0 errors and 0 warnings**; Prettier formatting checks passed. The domain suite contains **14 passing tests**. Final desktop organizer and mobile pass screenshots were visually inspected. The production build completed successfully with the Node adapter.
+All **5 local Playwright tests passed** against the built Node application after the PostgreSQL migration. The same **5 tests passed in 36.7 seconds against [the hosted production application](https://convene-coral-six.vercel.app)** at application commit `29f276e`. These exercise registration, reload persistence, conflict handling, cancellation and waitlist promotion, QR image decoding, organizer check-in, mobile layouts, accessibility, profile edits, VIP validation, and simultaneous final-seat requests. The concurrency test verifies a stored capacity of one, one confirmed reservation, one waitlist entry, and rejection of a capacity reduction below the confirmed count.
+
+Strict checking reported **0 errors and 0 warnings**; formatting checks passed. The domain/database suite contains **24 passing tests**. The Vercel deployment reached **READY**, and its build log confirmed `Database migrated and seeded (existing data preserved).` Initialization and runtime used the existing Vercel `DATABASE_URL`; no local secret file or additional key entry was required. Desktop organizer and mobile pass screenshots were visually inspected during local verification; hosted runs also captured responsive screenshots.
 
 ## Limits of the evidence
 
 Automated accessibility results are not a WCAG certification. Screen readers, real physical mobile cameras, Safari/Firefox, real venue scanning hardware, and deployed multi-instance behavior were not tested. Camera scanning is not shipped: manual organizer token entry is the verified scanner fallback. The QR is tested through actual image decoding. All check-in counts are event check-ins, not actual session attendance. No emails or push messages are sent.
 
-The application is intended for local evaluation. HTTPS infrastructure, production identity hardening, and a persistent deployment database must be configured before a public launch; see README.
+The hosted application is a portfolio demo using HTTPS and persistent Neon storage. Public organizer credentials and reusable invitation codes remain intentional demo features; see README and the PostgreSQL deployment notes.

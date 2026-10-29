@@ -1,5 +1,7 @@
 # CONVENE
 
+Live demo: [CONVENE](https://convene-coral-six.vercel.app).
+
 For Vercel, connect Neon as **DATABASE_URL** and see [deployment settings](docs/VERCEL.md) and [PostgreSQL setup](docs/POSTGRES.md). The deployment initializes the database using Vercel's environment variables; no local secret file is required.
 
 A complete fictional two-day technology conference and attendee portal, built with Svelte 5, SvelteKit 3, TypeScript 6, Tailwind CSS 4, PostgreSQL for hosting, and SQLite for self-contained local development. All interface content is in English. There is no affiliation with RainFocus, Zscaler, or any other referenced business.
