@@ -1,5 +1,7 @@
 # CONVENE
 
+For Vercel, see [build settings and the database prerequisite](docs/VERCEL.md). `npm run build:vercel` produces Vercel Build Output API artifacts; the deployed application still requires migration to a shared external database for persistent attendee data.
+
 A complete fictional two-day technology conference and attendee portal, built with Svelte 5, SvelteKit 3, TypeScript 6, Tailwind CSS 4, and SQLite. All interface content is in English. There is no affiliation with RainFocus, Zscaler, or any other referenced business.
 
 ## Run locally
