@@ -4,24 +4,19 @@ import { one, transaction } from './db.ts';
 import { addUser, hash } from './auth.ts';
 import { book } from './domain.ts';
 import { tracks } from '../event.ts';
-export function seed(db: DB) {
-  if (one(db, 'SELECT id FROM events LIMIT 1')) {
-    transaction(db, () =>
-      details.forEach((d, i) =>
-        db
+export async function seed(db: DB) {
+  return transaction(db, async () => {
+    if (await one(db, 'SELECT id FROM events LIMIT 1')) {
+      for (const [i, d] of details.entries()) {
+        await db
           .prepare('UPDATE sessions SET description=?,outcomes=? WHERE id=?')
-          .run(d[0], JSON.stringify(d[1]), i + 1),
-      ),
-    );
-    return;
-  }
-  transaction(db, () => {
-    db.prepare('INSERT INTO events VALUES(1,?,?,?,?)').run(
-      'CONVENE',
-      'America/New_York',
-      '2027-05-20T13:00:00Z',
-      '2027-05-21T21:00:00Z',
-    );
+          .run(d[0], JSON.stringify(d[1]), i + 1);
+      }
+      return;
+    }
+    await db
+      .prepare('INSERT INTO events VALUES(1,?,?,?,?)')
+      .run('CONVENE', 'America/New_York', '2027-05-20T13:00:00Z', '2027-05-21T21:00:00Z');
     const people = [
       ['Maya Chen', 'Staff Engineer', 'Northstar', 'MC', '#ddd8ef'],
       ['Jordan Ellis', 'AI Research Lead', 'Fieldwork', 'JE', '#d7e8df'],
@@ -36,8 +31,8 @@ export function seed(db: DB) {
       ['Zara Ahmed', 'Accessibility Lead', 'Civic Studio', 'ZA', '#d3e4e9'],
       ['Theo Bennett', 'Founder', 'Small Hours', 'TB', '#edddce'],
     ];
-    people.forEach((p, i) =>
-      db
+    for (const [i, p] of people.entries()) {
+      await db
         .prepare('INSERT INTO speakers VALUES(?,?,?,?,?,?,?)')
         .run(
           i + 1,
@@ -47,8 +42,8 @@ export function seed(db: DB) {
           `${p[0]} works at the intersection of thoughtful technology and practical change. As ${p[1].toLowerCase()} at ${p[2]}, they help teams turn ambitious ideas into reliable products. Their sessions draw on hands-on experience and leave space for honest questions.`,
           p[3],
           p[4],
-        ),
-    );
+        );
+    }
     const titles = [
       'Building software that lasts',
       'Beyond the AI prototype',
@@ -76,7 +71,7 @@ export function seed(db: DB) {
       'What we build next',
     ];
     const rooms = ['The Assembly', 'Studio A', 'Studio B', 'The Workshop'];
-    titles.forEach((title, i) => {
+    for (const [i, title] of titles.entries()) {
       const index = i % 12;
       const slot = Math.floor(index / 4);
       const startHour = [9, 11, 14][slot];
@@ -85,61 +80,63 @@ export function seed(db: DB) {
       const start = new Date(Date.UTC(2027, 4, date, startHour + 4, minute));
       const end = new Date(+start + [45, 60, 90][i % 3] * 60000);
       const track = tracks[i % 4];
-      db.prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(
-        i + 1,
-        1,
-        title.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-'),
-        title,
-        details[i][0],
-        JSON.stringify(details[i][1]),
-        track,
-        `${track},practice,systems`,
-        start.toISOString(),
-        end.toISOString(),
-        rooms[i % 4],
-        i % 3 === 2 ? 'Workshop' : 'Talk',
-        i % 3 === 0 ? 'Foundational' : i % 3 === 1 ? 'Intermediate' : 'Advanced',
-        i === 5 ? 1 : i === 9 ? 2 : 40 + (i % 4) * 20,
-        i === 11 || i === 23 ? 'vip' : 'all',
-      );
-      db.prepare('INSERT INTO session_speakers VALUES(?,?)').run(i + 1, (i % 12) + 1);
+      await db
+        .prepare('INSERT INTO sessions VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        .run(
+          i + 1,
+          1,
+          title.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-'),
+          title,
+          details[i][0],
+          JSON.stringify(details[i][1]),
+          track,
+          `${track},practice,systems`,
+          start.toISOString(),
+          end.toISOString(),
+          rooms[i % 4],
+          i % 3 === 2 ? 'Workshop' : 'Talk',
+          i % 3 === 0 ? 'Foundational' : i % 3 === 1 ? 'Intermediate' : 'Advanced',
+          i === 5 ? 1 : i === 9 ? 2 : 40 + (i % 4) * 20,
+          i === 11 || i === 23 ? 'vip' : 'all',
+        );
+      await db.prepare('INSERT INTO session_speakers VALUES(?,?)').run(i + 1, (i % 12) + 1);
+    }
+    await db.prepare('INSERT INTO invitations VALUES(?,?)').run(hash('CONVENE-VIP'), 'vip');
+    await db.prepare('INSERT INTO invitations VALUES(?,?)').run(hash('CONVENE-SPEAKER'), 'speaker');
+    const general = await addUser(db, {
+      name: 'Alex Morgan',
+      email: 'alex@convene.demo',
+      password: 'Convene2027!',
+      category: 'general',
+      company: 'Independent',
+      interests: 'Engineering',
     });
-    db.prepare('INSERT INTO invitations VALUES(?,?)').run(hash('CONVENE-VIP'), 'vip');
-    db.prepare('INSERT INTO invitations VALUES(?,?)').run(hash('CONVENE-SPEAKER'), 'speaker');
+    await addUser(db, {
+      name: 'Sam Taylor',
+      email: 'vip@convene.demo',
+      password: 'Convene2027!',
+      category: 'vip',
+    });
+    await addUser(db, {
+      name: 'Maya Chen',
+      email: 'speaker@convene.demo',
+      password: 'Convene2027!',
+      category: 'speaker',
+    });
+    await addUser(db, {
+      name: 'Jamie Quinn',
+      email: 'organizer@convene.demo',
+      password: 'Convene2027!',
+      category: 'general',
+      role: 'organizer',
+    });
+    const holder = await addUser(db, {
+      name: 'Casey Lee',
+      email: 'casey@convene.demo',
+      password: 'Convene2027!',
+      category: 'general',
+    });
+    await book(db, holder, 6);
+    await book(db, general, 1);
   });
-  const general = addUser(db, {
-    name: 'Alex Morgan',
-    email: 'alex@convene.demo',
-    password: 'Convene2027!',
-    category: 'general',
-    company: 'Independent',
-    interests: 'Engineering',
-  });
-  addUser(db, {
-    name: 'Sam Taylor',
-    email: 'vip@convene.demo',
-    password: 'Convene2027!',
-    category: 'vip',
-  });
-  addUser(db, {
-    name: 'Maya Chen',
-    email: 'speaker@convene.demo',
-    password: 'Convene2027!',
-    category: 'speaker',
-  });
-  addUser(db, {
-    name: 'Jamie Quinn',
-    email: 'organizer@convene.demo',
-    password: 'Convene2027!',
-    category: 'general',
-    role: 'organizer',
-  });
-  const holder = addUser(db, {
-    name: 'Casey Lee',
-    email: 'casey@convene.demo',
-    password: 'Convene2027!',
-    category: 'general',
-  });
-  book(db, holder, 6);
-  book(db, general, 1);
 }

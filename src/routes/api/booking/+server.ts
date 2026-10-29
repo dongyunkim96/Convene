@@ -19,8 +19,8 @@ export const POST = async ({ request, locals }: RequestEvent) => {
   try {
     return Response.json(
       p.data.action === 'book'
-        ? book(database(), locals.user.id, p.data.id)
-        : cancel(database(), locals.user.id, p.data.id),
+        ? await book(database(), locals.user.id, p.data.id)
+        : await cancel(database(), locals.user.id, p.data.id),
     );
   } catch (e) {
     if (e instanceof DomainError)

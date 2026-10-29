@@ -14,23 +14,20 @@ export function passwordMatches(password: string, stored: string) {
   return candidate.length === expected.length && timingSafeEqual(candidate, expected);
 }
 const userQuery = `SELECT u.id,u.email,u.name,u.role,p.category,p.company,p.title,p.interests,p.preferences,p.reference FROM users u JOIN profiles p ON p.user_id=u.id`;
-export function getUser(db: DB, id: string) {
-  return one<User>(db, userQuery + ' WHERE u.id=?', id);
+export async function getUser(db: DB, id: string) {
+  return await one<User>(db, userQuery + ' WHERE u.id=?', id);
 }
-export function currentUser(token?: string) {
+export async function currentUser(token?: string) {
   if (!token) return null;
   const db = database();
-  const session = one<{ user_id: string }>(
-    db,
-    'SELECT user_id FROM auth_sessions WHERE hash=? AND expires>?',
-    hash(token),
-    Date.now(),
-  );
-  return session ? (getUser(db, session.user_id) ?? null) : null;
+  const session = await one<{
+    user_id: string;
+  }>(db, 'SELECT user_id FROM auth_sessions WHERE hash=? AND expires>?', hash(token), Date.now());
+  return session ? ((await getUser(db, session.user_id)) ?? null) : null;
 }
-export function createAuth(cookies: Cookies, userId: string, secure: boolean) {
+export async function createAuth(cookies: Cookies, userId: string, secure: boolean) {
   const token = randomBytes(32).toString('hex');
-  database()
+  await database()
     .prepare('INSERT INTO auth_sessions VALUES(?,?,?)')
     .run(hash(token), userId, Date.now() + 7 * 86400000);
   cookies.set('convene_session', token, {
@@ -41,7 +38,7 @@ export function createAuth(cookies: Cookies, userId: string, secure: boolean) {
     maxAge: 7 * 86400,
   });
 }
-export function addUser(
+export async function addUser(
   db: DB,
   input: {
     name: string;
@@ -55,26 +52,30 @@ export function addUser(
     role?: string;
   },
 ) {
-  return transaction(db, () => {
+  return await transaction(db, async () => {
     const id = randomBytes(16).toString('hex');
     const reference = 'CV27-' + randomBytes(4).toString('hex').toUpperCase();
-    db.prepare('INSERT INTO users VALUES(?,?,?,?,?)').run(
-      id,
-      input.email.toLowerCase(),
-      input.name,
-      passwordHash(input.password),
-      input.role ?? 'attendee',
-    );
-    db.prepare('INSERT INTO profiles VALUES(?,?,?,?,?,?,1,?)').run(
-      id,
-      input.category,
-      input.company ?? '',
-      input.title ?? '',
-      input.interests ?? '',
-      input.preferences ?? '',
-      reference,
-    );
-    db.prepare('INSERT INTO passes VALUES(?,?)').run(id, randomBytes(32).toString('hex'));
+    await db
+      .prepare('INSERT INTO users VALUES(?,?,?,?,?)')
+      .run(
+        id,
+        input.email.toLowerCase(),
+        input.name,
+        passwordHash(input.password),
+        input.role ?? 'attendee',
+      );
+    await db
+      .prepare('INSERT INTO profiles VALUES(?,?,?,?,?,?,1,?)')
+      .run(
+        id,
+        input.category,
+        input.company ?? '',
+        input.title ?? '',
+        input.interests ?? '',
+        input.preferences ?? '',
+        reference,
+      );
+    await db.prepare('INSERT INTO passes VALUES(?,?)').run(id, randomBytes(32).toString('hex'));
     return id;
   });
 }

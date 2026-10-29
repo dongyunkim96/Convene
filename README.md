@@ -1,12 +1,12 @@
 # CONVENE
 
-For Vercel, see [build settings and the database prerequisite](docs/VERCEL.md). `npm run build:vercel` produces Vercel Build Output API artifacts; the deployed application still requires migration to a shared external database for persistent attendee data.
+For Vercel, connect Neon as **DATABASE_URL** and see [deployment settings](docs/VERCEL.md) and [PostgreSQL setup](docs/POSTGRES.md). The deployment initializes the database using Vercel's environment variables; no local secret file is required.
 
-A complete fictional two-day technology conference and attendee portal, built with Svelte 5, SvelteKit 3, TypeScript 6, Tailwind CSS 4, and SQLite. All interface content is in English. There is no affiliation with RainFocus, Zscaler, or any other referenced business.
+A complete fictional two-day technology conference and attendee portal, built with Svelte 5, SvelteKit 3, TypeScript 6, Tailwind CSS 4, PostgreSQL for hosting, and SQLite for self-contained local development. All interface content is in English. There is no affiliation with RainFocus, Zscaler, or any other referenced business.
 
 ## Run locally
 
-**Use Node 24 or later.** Older Node versions cannot run the built-in SQLite driver and current toolchain. This workspace's default Node was 20; development and validation used the desktop app's bundled Node 24.22.1.
+**Use Node 24.x.** Older Node versions cannot run the built-in SQLite driver and current toolchain. This workspace's default Node was 20; development and validation used the desktop app's bundled Node 24.22.1.
 
 ```sh
 npm ci --legacy-peer-deps
@@ -70,7 +70,7 @@ Use separate browser profiles or private windows for independent accounts; tabs 
 
 ## Architecture
 
-`src/routes` contains server loads/actions, API endpoints, and Svelte pages. Shared components are in `src/lib/components`. `src/lib/server/domain.ts` holds the testable booking, promotion, capacity, and verification rules. `db.ts` owns a SQLite connection, not per-user application state. `auth.ts` resolves database-backed sessions from an HttpOnly cookie. `migrations/001_initial.sql` defines relational constraints, indexes, and defense-in-depth capacity triggers.
+`src/routes` contains server loads/actions, API endpoints, and Svelte pages. Shared components are in `src/lib/components`. `src/lib/server/domain.ts` holds the async booking, promotion, capacity, and verification rules. `db.ts` owns a PostgreSQL pool or local SQLite connection; per-transaction clients are scoped with AsyncLocalStorage. `auth.ts` resolves database-backed sessions from an HttpOnly cookie. The SQL files in `migrations/` define relational constraints, indexes, and database capacity/access guards.
 
 The schema models users, attendee profiles, conference events, speakers, sessions, session-speaker relationships, reservations, waitlist entries, passes, check-ins, invitation codes, authentication sessions, and reservation transitions. Preferences and emails never appear in public session or speaker data.
 
@@ -78,7 +78,7 @@ Authentication follows the session-token approach described in the official Svel
 
 ### Booking and waitlist rules
 
-- Mutations use `BEGIN IMMEDIATE` transactions. SQLite serializes writers, with a busy timeout, and a database trigger independently prevents overbooking.
+- Hosted mutations use a dedicated PostgreSQL transaction client and a cross-instance advisory writer lock. Local mutations use `BEGIN IMMEDIATE` and a serialized SQLite connection. Database guards independently prevent overbooking.
 - One active reservation and one waitlist record per attendee/session are enforced by unique constraints. Repeated booking and cancellation requests are safe.
 - Confirmed sessions overlap when `A.start < B.end && B.start < A.end`. Back-to-back sessions are permitted. Existing reservations are never silently replaced.
 - Only invited VIP profiles can reserve VIP sessions. Speaker is a separate category, not elevated authorization.
@@ -113,9 +113,9 @@ See [research and applied design decisions](docs/RESEARCH.md) and [verification 
 
 ## Deployment and limits
 
-This implementation targets a **Node 24+ server with a persistent writable local disk**, using `@sveltejs/adapter-node`. Build with `npm run build`, run migrations/seed deliberately, then use `npm start`. The default production origin is http://127.0.0.1:3000. For deployment, set APP_ORIGIN to the public HTTPS origin in the build environment before building; SvelteKit 3 compiles paths.origin into the server. Do not use a different hostname or port without rebuilding with the matching APP_ORIGIN. Put HTTPS in front of the server. Keep the SQLite file and its WAL/SHM files on the same persistent volume, back them up consistently, and set DATABASE_PATH to that volume. Do not commit `.env` or database files.
+**Vercel:** connect Neon and set DATABASE_URL for the target environments. `npm run deploy:vercel` initializes the database and generates the Vercel functions. No credentials need to be stored locally. The Vercel adapter uses the request's real origin for both preview and production. See [PostgreSQL setup](docs/POSTGRES.md).
 
-This local SQLite architecture is not a direct fit for static hosting, ephemeral serverless filesystems, or multiple independent application replicas with separate disks. A hosted multi-instance deployment needs a shared deployment-compatible database and equivalent transactional constraints. No hosted deployment has been configured or published.
+**Standalone local server:** use Node 24.x, run `npm run build`, then `npm start`. The default origin is http://127.0.0.1:3000. For a standalone server at another origin, set APP_ORIGIN before building. If using SQLite, retain its database/WAL/SHM files on persistent disk. Hosted serverless operation requires PostgreSQL and never falls back to ephemeral SQLite. Local SQLite records are not automatically uploaded to Neon.
 
 The organizer scanner provides a tested manual token fallback; camera capture is intentionally not implemented. The QR itself is real and is decoded in E2E verification. There are no payments, sent emails, push notifications, session-attendance scans, automatic calendar updates, account recovery, or external integrations. In-app promotion notices remain visible as recent history. Email/category changes are not exposed through profile editing.
 

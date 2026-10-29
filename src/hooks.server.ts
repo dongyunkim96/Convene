@@ -7,7 +7,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     event.request.headers.get('origin') !== event.url.origin
   )
     return new Response('Cross-origin request rejected', { status: 403 });
-  event.locals.user = currentUser(event.cookies.get('convene_session'));
+  event.locals.user = await currentUser(event.cookies.get('convene_session'));
   const response = await resolve(event);
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'same-origin');

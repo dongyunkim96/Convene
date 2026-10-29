@@ -3,14 +3,14 @@ import { error, fail } from '@sveltejs/kit';
 import { requireOrganizer } from '#lib/server/guards.ts';
 import { database, all } from '#lib/server/db.ts';
 import { session, setCapacity, DomainError } from '#lib/server/domain.ts';
-export const load = ({ locals, params }: RequestEvent) => {
+export const load = async ({ locals, params }: RequestEvent) => {
   requireOrganizer(locals);
   const db = database();
-  const s = session(db, Number(params.id));
+  const s = await session(db, Number(params.id));
   if (!s) error(404, 'Session not found.');
   return {
     session: s,
-    records: all<{
+    records: await all<{
       id: string;
       name: string;
       email: string;
@@ -29,7 +29,7 @@ export const actions = {
     const user = requireOrganizer(locals);
     const value = Number((await request.formData()).get('capacity'));
     try {
-      return setCapacity(database(), user, Number(params.id), value);
+      return await setCapacity(database(), user, Number(params.id), value);
     } catch (e) {
       if (e instanceof DomainError) return fail(400, { message: e.message });
       throw e;

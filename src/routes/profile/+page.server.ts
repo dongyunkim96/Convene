@@ -22,7 +22,7 @@ export const actions = {
         message:
           'Please keep company and title below 120 characters and preferences below 1,000 characters.',
       });
-    database()
+    await database()
       .prepare('UPDATE profiles SET company=?,title=?,interests=?,preferences=? WHERE user_id=?')
       .run(p.data.company, p.data.title, p.data.interests, p.data.preferences, user.id);
     return { message: 'Your profile has been updated.' };

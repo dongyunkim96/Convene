@@ -5,7 +5,7 @@ import { sessions } from '#lib/server/domain.ts';
 const escape = (s: string) =>
   s.replaceAll('\\', '\\\\').replaceAll('\n', '\\n').replaceAll(',', '\\,').replaceAll(';', '\\;');
 const stamp = (s: string) => s.replaceAll(/[-:]/g, '').replace(/\.\d{3}/, '');
-export const GET = ({ locals }: RequestEvent) => {
+export const GET = async ({ locals }: RequestEvent) => {
   const user = requireUser(locals);
   const rows = [
     'BEGIN:VCALENDAR',
@@ -14,7 +14,7 @@ export const GET = ({ locals }: RequestEvent) => {
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
   ];
-  for (const s of sessions(database(), user.id).filter((s) => s.state === 'reserved'))
+  for (const s of (await sessions(database(), user.id)).filter((s) => s.state === 'reserved'))
     rows.push(
       'BEGIN:VEVENT',
       `UID:convene-2027-${s.id}@convene.demo`,

@@ -2,9 +2,9 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { requireOrganizer } from '#lib/server/guards.ts';
 import { database, all } from '#lib/server/db.ts';
 import { csvCell } from '#lib/server/domain.ts';
-export const GET = ({ locals }: RequestEvent) => {
+export const GET = async ({ locals }: RequestEvent) => {
   requireOrganizer(locals);
-  const records = all<Record<string, unknown>>(
+  const records = await all<Record<string, unknown>>(
     database(),
     `SELECT u.name,u.email,p.category,p.reference,COALESCE(c.checked_at,'Not checked in') checkin,(SELECT COUNT(*) FROM reservations WHERE user_id=u.id) reservations,(SELECT COUNT(*) FROM waitlist WHERE user_id=u.id) waitlists FROM users u JOIN profiles p ON p.user_id=u.id LEFT JOIN checkins c ON c.user_id=u.id WHERE u.role='attendee'`,
   );

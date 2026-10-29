@@ -15,19 +15,19 @@ export const actions = {
     const db = database();
     if (
       v.category !== 'general' &&
-      !one(
+      !(await one(
         db,
         'SELECT category FROM invitations WHERE code_hash=? AND category=?',
         hash(v.code),
         v.category,
-      )
+      ))
     )
       return fail(400, {
         errors: [
           { field: 'code', message: 'Enter a valid invitation code for this attendee category.' },
         ],
       });
-    if (one(db, 'SELECT id FROM users WHERE email=? COLLATE NOCASE', v.email))
+    if (await one(db, 'SELECT id FROM users WHERE lower(email)=lower(?)', v.email))
       return fail(400, {
         errors: [
           {
@@ -38,7 +38,7 @@ export const actions = {
       });
     let id: string;
     try {
-      id = addUser(db, { ...v, name: v.first + ' ' + v.last });
+      id = await addUser(db, { ...v, name: v.first + ' ' + v.last });
     } catch {
       return fail(409, {
         errors: [
@@ -49,7 +49,7 @@ export const actions = {
         ],
       });
     }
-    createAuth(cookies, id, url.protocol === 'https:');
+    await createAuth(cookies, id, url.protocol === 'https:');
     redirect(303, '/my-schedule?welcome=1');
   },
 };
