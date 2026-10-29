@@ -216,11 +216,25 @@ test('simultaneous final-seat requests use the server capacity rule', async ({ b
   await signIn(a, 'alex@convene.demo');
   await signIn(b, 'casey@convene.demo');
   await signIn(admin, 'organizer@convene.demo');
+  const origin = new URL(a.url()).origin;
+  for (const attendee of [a, b]) {
+    expect(
+      (
+        await attendee.request.post('/api/booking', {
+          data: { id: 10, action: 'cancel' },
+          headers: { Origin: origin },
+        })
+      ).status(),
+    ).toBe(200);
+  }
   await admin.goto('/admin/sessions/10');
   await admin.getByLabel('Session capacity').fill('1');
   await admin.getByRole('button', { name: 'Save capacity' }).click();
   await expect(admin.getByRole('status')).toContainText('Capacity updated');
-  const origin = new URL(a.url()).origin;
+  await admin.reload();
+  await expect(
+    admin.locator('.metric').filter({ hasText: 'Capacity' }).locator('strong'),
+  ).toHaveText('1');
   const responses = await Promise.all(
     [a, b].map((p) =>
       p.request.post('/api/booking', {
@@ -261,6 +275,18 @@ test('simultaneous final-seat requests use the server capacity rule', async ({ b
   await admin.setViewportSize({ width: 390, height: 844 });
   expect(await admin.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await admin.screenshot({ path: 'artifacts/admin-mobile.png', fullPage: true });
+  // Restore shared demo fixtures when explicitly testing a hosted demo.
+  for (const attendee of [a, b]) {
+    const cancelled = await attendee.request.post('/api/booking', {
+      data: { id: 10, action: 'cancel' },
+      headers: { Origin: origin },
+    });
+    expect(cancelled.status()).toBe(200);
+  }
+  await admin.goto('/admin/sessions/10');
+  await admin.getByLabel('Session capacity').fill('2');
+  await admin.getByRole('button', { name: 'Save capacity' }).click();
+  await expect(admin.getByRole('status')).toContainText('Capacity updated');
   for (const c of contexts) await c.close();
 });
 test('registration validates consent and invitation codes; profile edits persist', async ({

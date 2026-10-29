@@ -1,9 +1,14 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
+  import { onMount } from 'svelte';
   import { ArrowLeft, Save } from '@lucide/svelte';
   import { day, time } from '#lib/event.ts';
   let { data, form }: import('./$types').PageProps = $props();
   let pending = $state(false);
+  let ready = $state(false);
+  onMount(() => {
+    ready = true;
+  });
 </script>
 
 <svelte:head><title>Manage session · CONVENE</title></svelte:head>
@@ -44,6 +49,7 @@
       <div>
         <label for="capacity">Session capacity</label><input
           id="capacity"
+          disabled={!ready}
           type="number"
           min="0"
           max="10000"
@@ -54,7 +60,7 @@
           style="max-width:170px"
         />
       </div>
-      <button class="btn primary" disabled={pending}
+      <button class="btn primary" disabled={pending || !ready}
         ><Save size={15} />{pending ? 'Saving…' : 'Save capacity'}</button
       >
     </div>
